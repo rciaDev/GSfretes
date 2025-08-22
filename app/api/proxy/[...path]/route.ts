@@ -18,7 +18,8 @@ export async function DELETE(req: NextRequest) {
 
 async function handleProxy(req: NextRequest) {
   const path = req.nextUrl.pathname.replace('/api/proxy/', '');
-  const url = `http://api-gsfretes.rcia.com.br/${path}`;
+  const API_URL = process.env.API_URL;
+  const url = `${API_URL}/${path}`;
 
   const body = req.method !== 'GET' ? await req.text() : undefined;
 
