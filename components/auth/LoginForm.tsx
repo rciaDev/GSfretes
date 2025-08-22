@@ -26,7 +26,7 @@ export default function LoginForm() {
         senha: loginData.senha,
       })
 
-      console.log(response)
+      console.log(response);
 
       const data = response.data
 
