@@ -7,7 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { slug } = req.query;
     const slugArray = Array.isArray(slug) ? slug : [slug].filter(Boolean);
 
-    const backendUrl = `http://api-gsfretes.rcia.com.br/api/${slugArray.join("/")}`;
+    const backendUrl = `http://api-gsfretes.rcia.com.br/${slugArray.join("/")}`;
 
     // transforma req.headers em Record<string, string>
     const headers: Record<string, string> = {};
