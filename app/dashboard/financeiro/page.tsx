@@ -418,7 +418,7 @@ export default function Financeiro() {
                             <CardDescription>Todos os fretes registrados</CardDescription>
                         </CardHeader>
 
-                        {/* Campo de filtro */}
+                        {/* Campo de filtroo */}
 
 
                         <div className="px-4 pb-4">
