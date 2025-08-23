@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import api from "../services/api"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -30,7 +31,13 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      const response = await axios.post("/api/recuperar-senha", {
+
+      if (!email?.trim()) {
+        toast({ title: "Campo obrigatório", description: "Informe seu e-mail para continuar." })
+        return
+      }
+
+      const response = await api.post("/api/recuperar-senha", {
         login: email,
       })
 

@@ -92,9 +92,9 @@ export default function VisualizarFrete() {
                     </Table>
 
                     <div className="flex gap-2 mt-6">
-                        <Button asChild>
-                            <Link href={`/dashboard/fretes/${frete.codigo}/editar`}>Editar Frete</Link>
-                        </Button>
+                        {/* <Button asChild>
+                            <Link href={`/dashboard/fretes/novo?id=${frete.id}`}>Editar Frete</Link>
+                        </Button> */}
                         <Button asChild variant="outline">
                             <Link href="/dashboard/fretes">Voltar</Link>
                         </Button>
