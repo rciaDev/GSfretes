@@ -1,46 +1,58 @@
 "use client"
 
 import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast" // ajuste conforme sua implementação de toast
 import api from "@/app/services/api"
 
 export default function AlterarSenhaPage() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
+  const router = useRouter()
 
   const [senha, setSenha] = useState("")
   const [confirmaSenha, setConfirmaSenha] = useState("")
-  const [mensagem, setMensagem] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!token) {
-      setMensagem("Token inválido ou não informado.")
+    if (senha !== confirmaSenha) {
+      toast({
+        title: "Erro",
+        description: "As senhas não conferem.",
+      })
       return
     }
 
-    if (senha !== confirmaSenha) {
-      setMensagem("As senhas não coincidem.")
-      return
-    }
+    setLoading(true)
 
     try {
-      setLoading(true)
-      const response = await api.post("/alterar-senha", {
+      const response = await api.post("/api/alterar-senha", {
         token,
         senha,
         confirmasenha: confirmaSenha,
       })
 
-      if (response.data.erro === 0) {
-        setMensagem("Senha alterada com sucesso!")
+      const data = response.data
+
+      if (data.erro === 0) {
+        toast({
+          title: "Sucesso",
+          description: data.mensagem || "Senha alterada com sucesso!",
+        })
+        router.push("/login")
       } else {
-        setMensagem(response.data.mensagem || "Erro ao alterar senha.")
+        toast({
+          title: "Erro",
+          description: data.mensagem || "Não foi possível alterar a senha.",
+        })
       }
-    } catch (error: any) {
-      setMensagem(error.response?.data?.mensagem || "Erro inesperado.")
+    } catch (error) {
+      toast({
+        title: "Erro de servidor",
+        description: "Não foi possível conectar à API de alteração de senha.",
+      })
     } finally {
       setLoading(false)
     }
@@ -74,7 +86,6 @@ export default function AlterarSenhaPage() {
           {loading ? "Alterando..." : "Confirmar"}
         </button>
       </form>
-      {mensagem && <p className="mt-4 text-center">{mensagem}</p>}
     </div>
   )
 }

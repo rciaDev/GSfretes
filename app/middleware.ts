@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value || null
 
   // Rotas públicas
-  const publicRoutes = ["/", "/esqueceuSenha"]
+  const publicRoutes = ["/", "/esqueceuSenha", "/alterar/senha"]
 
   // Se a rota não é pública e não tem token → redireciona para login
   if (!publicRoutes.includes(request.nextUrl.pathname) && !token) {
