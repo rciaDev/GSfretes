@@ -1,29 +1,39 @@
 "use client"
 
 import { useState } from "react"
-import axios from "axios"
+import { useRouter } from "next/navigation"
+import api from "@/app/services/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 
-export default function Configuracao() {
-  const { toast } = useToast()
+// Função utilitária para obter o token
+function getAuthToken(): string | null {
+  try {
+    const user = JSON.parse(localStorage.getItem("gsfretes_user") || "{}")
+    return user?.token || null
+  } catch {
+    return null
+  }
+}
 
-  // Estado para senha
+export default function AlterarSenhaPage() {
+  const { toast } = useToast()
+  const router = useRouter()
+
   const [senha, setSenha] = useState("")
   const [confirmaSenha, setConfirmaSenha] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validação simples
     if (!senha || !confirmaSenha) {
       toast({
         title: "Erro",
-        description: "Preencha todos os campos",
+        description: "Preencha todos os campos.",
         variant: "destructive",
       })
       return
@@ -32,55 +42,52 @@ export default function Configuracao() {
     if (senha !== confirmaSenha) {
       toast({
         title: "Erro",
-        description: "As senhas não conferem",
+        description: "As senhas não conferem.",
         variant: "destructive",
       })
       return
     }
 
+    const token = getAuthToken()
+    console.log("token",token)
+
+    if (!token) {
+      toast({
+        title: "Erro",
+        description: "Token não encontrado. Faça login novamente.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLoading(true)
+
     try {
-      setLoading(true)
-
-      // Recupera token salvo no localStorage (ajuste se precisar pegar de outro lugar)
-      const user = JSON.parse(localStorage.getItem("gsfretes_user") || "{}")
-      const token = user?.token
-
-      if (!token) {
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Chamada para API
-      const response = await axios.post("/api/alterar-senha", {
+      const response = await api.post("/api/alterar-senha", {
         token,
         senha,
         confirmasenha: confirmaSenha,
       })
 
-      const data = response.data
+      const { erro, mensagem } = response.data
 
-      if (data.erro === 0) {
+      if (erro === 0) {
         toast({
           title: "Sucesso",
-          description: data.mensagem,
+          description: mensagem || "Senha alterada com sucesso!",
         })
-        setSenha("")
-        setConfirmaSenha("")
+        router.push("/")
       } else {
         toast({
           title: "Erro",
-          description: data.mensagem || "Não foi possível alterar a senha",
+          description: mensagem || "Não foi possível alterar a senha.",
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
-        title: "Erro",
-        description: "Falha ao conectar à API de alteração de senha",
+        title: "Erro de servidor",
+        description: "Não foi possível conectar à API de alteração de senha.",
         variant: "destructive",
       })
     } finally {
@@ -91,11 +98,11 @@ export default function Configuracao() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tela de configurações</CardTitle>
-        <CardDescription>Configure as informações do seu sistema.</CardDescription>
+        <CardTitle>Alterar Senha</CardTitle>
+        <CardDescription>Digite sua nova senha abaixo.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleChangePassword} className="space-y-4 max-w-[300px]">
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-[300px]">
           <div className="space-y-2">
             <Label htmlFor="senha">Nova Senha</Label>
             <Input
