@@ -36,6 +36,9 @@ export default function NovoFretePage() {
   const [bloquearEdicao, setBloquearEdicao] = useState(false);
   const searchParams = useSearchParams();
   const [dadosCarregados, setDadosCarregados] = useState(false);
+  const [resultadosProduto, setResultadosProduto] = useState<{ [key: number]: any[] }>({});
+
+
 
 
 
@@ -288,7 +291,7 @@ export default function NovoFretePage() {
       return;
     }
 
-    if (itens.some(i => i.quantidade <= 0 || i.valorUnitario <= 0 || !i.produto || !i.unidade)) {
+    if (itens.some(i => i.quantidade <= 0 || i.valorUnitario <= 0)) {
       toast({ title: "Erro", description: "Verifique os itens do frete (preço ou quantidade inválidos).", variant: "destructive" });
       return;
     }
@@ -302,21 +305,21 @@ export default function NovoFretePage() {
         ? toBR(formData.vencimento)
         : "";
 
-    
+
       const payload = {
         ...(isEdit ? { codigo: String(id) } : { codigo: "" }),
-        data: dataBR,                      
-        formapg: formData.formaPg.toUpperCase(),        
+        data: dataBR,
+        formapg: formData.formaPg.toUpperCase(),
         cliente: String(formData.clienteId),
         seqfin: "",
-        vencimento: vencimentoBR,         
+        vencimento: vencimentoBR,
         veiculo: String(formData.veiculoId),
         origem: formData.origem.toUpperCase(),
         destino: formData.destino.toUpperCase(),
         valor: calcularValorTotal().toFixed(2),
         obs: formData.observacoes.toUpperCase(),
         itens: itens.map((item, idx) => ({
-          
+
           codigo: "",
           item: String(idx + 1),
           produto: String(item.tabelaPrecoId).toUpperCase(),
@@ -419,7 +422,7 @@ export default function NovoFretePage() {
     setClienteSelecionado(cliente);
     setBuscaCliente(cliente.nome);
 
-     const enderecoCompleto = `${cliente.endereco || ""}, ${cliente.numero || ""} - ${cliente.cidade || ""}`;
+    const enderecoCompleto = `${cliente.endereco || ""}, ${cliente.numero || ""} - ${cliente.cidade || ""}`;
 
     setFormData({
       ...formData,
@@ -551,60 +554,96 @@ export default function NovoFretePage() {
                   <div className="flex items-center gap-2 col-span-1">
                     <span className="font-medium">#{index + 1}</span>
                     {itens.length > 1 && (
-                      <Button type="button" variant="outline" size="icon" onClick={() => removerItem(index)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removerItem(index)}
+                      >
                         <Minus className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
 
-                  {/* Unidade */}
-                  <div className="col-span-2">
+                  {/* Unidade (com busca de produto) */}
+                  <div className="relative col-span-2">
+
                     <Input
                       disabled={bloquearEdicao}
-                      placeholder="Unidade"
-                      value={item.unidade}
-                      onChange={(e) => atualizarItem(index, "unidade", e.target.value)}
-                      onBlur={async (e) => {
-                        const produtoEncontrado = await handleGetProduto(e.target.value);
-                        if (produtoEncontrado) {
-                          const preco = Number(produtoEncontrado.preco.replace(",", ".")) || 0;
-                          const novosItens = [...itens];
-                          novosItens[index] = {
-                            ...novosItens[index],
-                            tabelaPrecoId: Number(produtoEncontrado.id),
-                            unidade: produtoEncontrado.unidade,
-                            valorUnitario: preco,
-                            valorTotal: preco * novosItens[index].quantidade,
-                          };
-                          setItens(novosItens);
+                      value={item.unidade || ""}
+                      onChange={async (e) => {
+                        const termo = e.target.value;
+                        atualizarItem(index, "unidade", termo);
+
+                        if (termo.length > 1) {
+                          const lista = await handleGetProduto(termo);
+                          setResultadosProduto((prev) => ({
+                            ...prev,
+                            [index]: Array.isArray(lista) ? lista : lista ? [lista] : [],
+                          }));
+                        } else {
+                          setResultadosProduto((prev) => ({ ...prev, [index]: [] }));
                         }
+
                       }}
+                      placeholder="Digite o nome do produto"
                     />
+
+                    {resultadosProduto[index]?.length > 0 && (
+                      <div className="absolute z-10 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                        {resultadosProduto[index].map((p) => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              const preco = Number(p.preco.replace(",", ".")) || 0;
+                              const novosItens = [...itens];
+                              novosItens[index] = {
+                                ...novosItens[index],
+                                tabelaPrecoId: Number(p.id),
+                                unidade: p.unidade,
+                                valorUnitario: preco,
+                                valorTotal: preco * novosItens[index].quantidade,
+                              };
+                              setItens(novosItens);
+                              setResultadosProduto((prev) => ({ ...prev, [index]: [] })); // limpa só esse
+                            }}
+                            className="p-2 hover:bg-gray-100 cursor-pointer"
+                          >
+                            {p.nome} - {p.unidade}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                   </div>
 
                   {/* Quantidade */}
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <Input
                       disabled={bloquearEdicao}
                       type="number"
                       min={1}
                       value={item.quantidade}
-                      onChange={(e) => atualizarItem(index, "quantidade", Number(e.target.value))}
+                      onChange={(e) =>
+                        atualizarItem(index, "quantidade", Number(e.target.value))
+                      }
                     />
                   </div>
 
                   {/* Valor Unitário */}
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <Input
                       disabled={bloquearEdicao}
                       type="number"
                       value={item.valorUnitario}
-                      onChange={(e) => atualizarItem(index, "valorUnitario", Number(e.target.value))}
+                      onChange={(e) =>
+                        atualizarItem(index, "valorUnitario", Number(e.target.value))
+                      }
                     />
                   </div>
 
                   {/* Produto */}
-                  <div className="col-span-5">
+                  <div className="col-span-3">
                     <Input
                       disabled={bloquearEdicao}
                       placeholder="Descrição"
@@ -624,10 +663,16 @@ export default function NovoFretePage() {
                 </div>
               ))}
 
-              <Button disabled={bloquearEdicao} type="button" onClick={adicionarItem} variant="outline">
+              <Button
+                disabled={bloquearEdicao}
+                type="button"
+                onClick={adicionarItem}
+                variant="outline"
+              >
                 <Plus className="mr-2 h-4 w-4" /> Adicionar Item
               </Button>
             </div>
+
 
 
             {/* Total do Frete */}
