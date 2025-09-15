@@ -235,7 +235,8 @@ export default function NovoFretePage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      return res.data.length > 0 ? res.data[0] : null;
+      // return res.data.length > 0 ? res.data[0] : null;
+       return res.data || [];
     } catch {
       return null;
     }
