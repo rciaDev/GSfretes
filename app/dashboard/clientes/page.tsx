@@ -111,10 +111,10 @@ export default function ClientesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.nome || !formData.cnpj) {
+    if (!formData.nome) {
       toast({
         title: "Erro",
-        description: "Nome e CNPJ/CPF são obrigatórios",
+        description: "Nome é obrigatório",
         variant: "destructive",
       })
       return
@@ -201,7 +201,6 @@ export default function ClientesPage() {
     setIsDialogOpen(true)
   }
 
-  // ================== EXCLUIR (só local) ==================
   const handleDelete = async (id: number) => {
     try {
       // console.log("ID recebido para exclusão:", id);
@@ -330,12 +329,12 @@ export default function ClientesPage() {
               {/* FORM LINHAS RESPONSIVAS */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>CNPJ/CPF *</Label>
+                  <Label>CNPJ/CPF</Label>
                   <Input
                     placeholder="00.000.000/0000-00"
                     value={formData.cnpj}
                     onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                    required
+                    
                   />
                 </div>
                 <div className="space-y-2">
@@ -525,9 +524,9 @@ export default function ClientesPage() {
                         <Button variant="outline" size="sm" className="p-2" onClick={() => handleEdit(cliente)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" className="p-2" onClick={() => handleDelete(cliente.id)}>
+                        {/* <Button variant="outline" size="sm" className="p-2" onClick={() => handleDelete(cliente.id)}>
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button> */}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -572,9 +571,9 @@ export default function ClientesPage() {
                     <Button variant="outline" size="sm" onClick={() => handleEdit(cliente)}>
                       <Edit className="h-4 w-4 mr-2" /> Editar
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(cliente.id)}>
+                    {/* <Button variant="outline" size="sm" onClick={() => handleDelete(cliente.id)}>
                       <Trash2 className="h-4 w-4 mr-2" /> Remover
-                    </Button>
+                    </Button> */}
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
