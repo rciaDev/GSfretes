@@ -120,14 +120,14 @@ export default function ClientesPage() {
       return
     }
 
-    if (!formData.endereco) {
-      toast({
-        title: "Erro",
-        description: "Endereço é obrigatório",
-        variant: "destructive",
-      })
-      return
-    }
+    // if (!formData.endereco) {
+    //   toast({
+    //     title: "Erro",
+    //     description: "Endereço é obrigatório",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
 
     const payload = {
       id: editingCliente ? String(editingCliente.id) : "",
@@ -347,7 +347,7 @@ export default function ClientesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Telefone *</Label>
+                  <Label>Telefone</Label>
                   <Input
                     placeholder="(00) 00000-0000"
                     value={formData.telefone}
@@ -358,7 +358,7 @@ export default function ClientesPage() {
                         telefone: formataCelular(prev.telefone),
                       }))
                     }
-                    required
+                    
                   />
                 </div>
               </div>
