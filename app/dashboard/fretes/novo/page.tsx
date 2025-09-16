@@ -6,16 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, DiamondPercentIcon } from "lucide-react";
+import { Plus, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/app/services/api";
 import type { Cliente, Veiculos, Produto as TabelaPreco } from "@/app/global/types";
 import { Textarea } from "@/components/ui/textarea";
 import axios from "axios";
-import { Noticia_Text } from "next/font/google";
-import { isStringObject } from "util/types";
-
 
 interface ItemFrete {
   tabelaPrecoId: number;
@@ -38,105 +35,11 @@ export default function NovoFretePage() {
   const [dadosCarregados, setDadosCarregados] = useState(false);
   const [resultadosProduto, setResultadosProduto] = useState<{ [key: number]: any[] }>({});
 
-
-
-
-
   const id = searchParams.get("id");
   const isEdit = !!id;
 
-
-
-
-  useEffect(() => {
-    if (!isEdit || !id) return;
-    if (!dadosCarregados) return;
-
-
-    async function carregarFreteEVerificarBaixa() {
-      try {
-        const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
-
-        // Verifica se já foi feito recebimento
-        const resRecebimento = await api.post("/api/recebimentos-lista", {
-          condicao: `CODIGO=${id}`,
-          ordem: "CODIGO"
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        console.log("res recebimento", resRecebimento)
-
-        if (resRecebimento.data?.length > 0) {
-          toast({
-            title: "Atenção",
-            description: "Frete já baixado, não é possível editar.",
-            variant: "destructive"
-          })
-          setBloquearEdicao(true); // impede edição
-        }
-
-        // Carrega dados do frete
-        const res = await api.post("/api/fretes-lista", {
-          condicao: `CODIGO=${id}`,
-          ordem: "",
-        }, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        console.log("res fretelista", res)
-
-        const frete = res.data?.[0];
-        if (!frete) return;
-
-        console.log("Frete carregado:", frete);
-
-
-        setFormData({
-          clienteId: frete.cliente,
-          clienteNome: frete.nome,
-          origem: frete.origem,
-          destino: frete.destino,
-          veiculoId: frete.veiculo,
-          motoristaNome: "", // ou buscar via API
-          observacoes: frete.obs,
-          formaPg: frete.formapg,
-          vencimento: frete.vencimento || "",
-        });
-
-        setBuscaCliente(frete.nome);
-
-        setItens(
-          Array.isArray(frete.itens) && frete.itens.length > 0
-            ? frete.itens.map((item: any) => ({
-              tabelaPrecoId: Number(item.produto),
-              unidade: item.unidade || "", // ou algum padrão se não tiver
-              produto: item.descricao,
-              quantidade: Number(item.quantidade),
-              valorUnitario: Number(item.unitario),
-              valorTotal: Number(item.total),
-            }))
-            : [
-              {
-                tabelaPrecoId: 0,
-                unidade: "",
-                produto: "",
-                quantidade: 1,
-                valorUnitario: 0,
-                valorTotal: 0,
-              },
-            ]
-        );
-
-      } catch (error) {
-        console.error("Erro ao carregar frete ou verificar baixa:", error);
-      }
-    }
-
-    carregarFreteEVerificarBaixa();
-  }, [isEdit, id, dadosCarregados]);
-
-
+  const router = useRouter();
+  const { toast } = useToast(); // moved up so effects can use it
 
   const [formData, setFormData] = useState({
     clienteId: 0,
@@ -154,14 +57,12 @@ export default function NovoFretePage() {
     { tabelaPrecoId: 0, unidade: "", produto: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 },
   ]);
 
-  const { toast } = useToast();
-  const router = useRouter();
-
   // Carregar clientes, veículos e produtos
   useEffect(() => {
     async function carregarDados() {
       try {
-        const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
+        const raw = localStorage.getItem("gsfretes_user") || "{}";
+        const token = JSON.parse(raw).token || "";
 
         const [clientesRes, veiculosRes, tabelaRes] = await Promise.all([
           api.post("/api/cliente-lista", { condicao: "", ordem: "NOME" }, { headers: { Authorization: `Bearer ${token}` } }),
@@ -169,64 +70,126 @@ export default function NovoFretePage() {
           api.post("/api/produto-lista", { condicao: "", ordem: "UNIDADE" }, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
-        setClientes(clientesRes.data);
-        setVeiculos(veiculosRes.data);
-        setTabelaPrecos(tabelaRes.data);
-        setDadosCarregados(true); // 🔥 Ativa a flag após tudo carregado
-      } catch {
-        toast({
-          title: "Erro",
-          description: "Falha ao carregar dados iniciais",
-          variant: "destructive",
-        });
+        setClientes(clientesRes.data || []);
+        setVeiculos(veiculosRes.data || []);
+        setTabelaPrecos(tabelaRes.data || []);
+        setDadosCarregados(true);
+      } catch (error) {
+        console.error("Erro ao carregar dados iniciais", error);
+        toast({ title: "Erro", description: "Falha ao carregar dados iniciais", variant: "destructive" });
       }
     }
 
     carregarDados();
-  }, []);
+  }, [toast]);
 
+  // Carrega frete e verifica se há baixa (apenas em edição)
+  useEffect(() => {
+    if (!isEdit || !id) return;
+    if (!dadosCarregados) return;
+
+    async function carregarFreteEVerificarBaixa() {
+      try {
+        const raw = localStorage.getItem("gsfretes_user") || "{}";
+        const token = JSON.parse(raw).token || "";
+
+        const resRecebimento = await api.post(
+          "/api/recebimentos-lista",
+          { condicao: `CODIGO=${id}`, ordem: "CODIGO" },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (Array.isArray(resRecebimento.data) && resRecebimento.data.length > 0) {
+          toast({ title: "Atenção", description: "Frete já baixado, não é possível editar.", variant: "destructive" });
+          setBloquearEdicao(true);
+        }
+
+        const res = await api.post(
+          "/api/fretes-lista",
+          { condicao: `CODIGO=${id}`, ordem: "" },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const frete = res.data?.[0];
+        if (!frete) return;
+
+        setFormData((prev) => ({
+          ...prev,
+          clienteId: Number(frete.cliente) || 0,
+          clienteNome: frete.nome || "",
+          origem: frete.origem || "",
+          destino: frete.destino || "",
+          veiculoId: Number(frete.veiculo) || 0,
+          motoristaNome: "",
+          observacoes: frete.obs || "",
+          formaPg: frete.formapg || "AVISTA",
+          vencimento: frete.vencimento || "",
+        }));
+
+        setBuscaCliente(frete.nome || "");
+
+        setItens(
+          Array.isArray(frete.itens) && frete.itens.length > 0
+            ? frete.itens.map((item: any, idx: number) => ({
+              tabelaPrecoId: Number(item.produto) || 0,
+              unidade: item.unidade || "",
+              produto: item.descricao || item.produto || `Item ${idx + 1}`,
+              quantidade: Number(item.quantidade) || 1,
+              valorUnitario: Number(item.unitario) || 0,
+              valorTotal: Number(item.total) || 0,
+            }))
+            : [
+              { tabelaPrecoId: 0, unidade: "", produto: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 },
+            ]
+        );
+      } catch (error) {
+        console.error("Erro ao carregar frete ou verificar baixa:", error);
+        toast({ title: "Erro", description: "Falha ao carregar dados do frete.", variant: "destructive" });
+      }
+    }
+
+    carregarFreteEVerificarBaixa();
+  }, [isEdit, id, dadosCarregados, toast]);
 
   const selecionarVeiculo = (id: string) => {
-    const veiculo = veiculos.find((v) => v.id === Number(id));
-    setFormData((prev) => ({
-      ...prev,
-      motoristaNome: veiculo ? veiculo.motorista : "",
-    }));
+    const veiculo = veiculos.find((v) => Number(v.id) === Number(id));
+    setFormData((prev) => ({ ...prev, motoristaNome: veiculo ? veiculo.motorista : "" }));
   };
 
-
-
   const adicionarItem = () => {
-    setItens([...itens, { tabelaPrecoId: 0, unidade: "", produto: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 }]);
+    setItens((prev) => [...prev, { tabelaPrecoId: 0, unidade: "", produto: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 }]);
   };
 
   const removerItem = (index: number) => {
-    if (itens.length > 1) {
-      setItens(itens.filter((_, i) => i !== index));
-    }
+    setItens((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const atualizarItem = (index: number, campo: keyof ItemFrete, valor: any) => {
-    const novosItens = [...itens];
-    novosItens[index] = { ...novosItens[index], [campo]: valor };
+    setItens((prev) => {
+      const novos = [...prev];
+      novos[index] = { ...novos[index], [campo]: valor } as ItemFrete;
 
-    if (campo === "quantidade" || campo === "valorUnitario") {
-      novosItens[index].valorTotal = novosItens[index].quantidade * novosItens[index].valorUnitario;
-    }
+      if (campo === "quantidade" || campo === "valorUnitario") {
+        const q = Number(novos[index].quantidade) || 0;
+        const v = Number(novos[index].valorUnitario) || 0;
+        novos[index].valorTotal = q * v;
+      }
 
-    setItens(novosItens);
+      return novos;
+    });
   };
 
   // Buscar produto no banco
   const handleGetProduto = async (valor: string) => {
-    if (!valor.trim()) return null;
+    if (!valor.trim()) return [];
 
-    const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
+    const raw = localStorage.getItem("gsfretes_user") || "{}";
+    const token = JSON.parse(raw).token || "";
 
-    const condicao = !isNaN(Number(valor.trim()))
-      ? `ID = ${parseInt(valor)}`
-      : `UPPER(UNIDADE) LIKE '%${valor.toUpperCase()}%'`;
-    // busca por unidade se for texto
+    const condicao = !isNaN(Number(valor.trim())) ? `ID = ${parseInt(valor)}` : `UPPER(UNIDADE) LIKE '%${valor.toUpperCase()}%'`;
 
     try {
       const res = await api.post(
@@ -235,14 +198,14 @@ export default function NovoFretePage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // return res.data.length > 0 ? res.data[0] : null;
-       return res.data || [];
-    } catch {
-      return null;
+      return res.data || [];
+    } catch (error) {
+      console.error("Erro ao buscar produto", error);
+      return [];
     }
   };
 
-  const calcularValorTotal = () => itens.reduce((acc, i) => acc + i.valorTotal, 0);
+  const calcularValorTotal = () => itens.reduce((acc, i) => acc + (Number(i.valorTotal) || 0), 0);
 
   function formatDate(date: Date) {
     const dia = String(date.getDate()).padStart(2, "0");
@@ -251,9 +214,7 @@ export default function NovoFretePage() {
     return `${dia}.${mes}.${ano}`;
   }
 
-  // helpers de data
   const toBR = (iso: string) => {
-    // ISO (yyyy-MM-dd) -> dd.MM.yyyy
     const m = iso?.match?.(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return "";
     const [, y, mo, d] = m;
@@ -281,7 +242,6 @@ export default function NovoFretePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // validações básicas
     if (!formData.clienteId || !formData.origem || !formData.destino || !formData.veiculoId) {
       toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
@@ -292,20 +252,17 @@ export default function NovoFretePage() {
       return;
     }
 
-    if (itens.some(i => i.quantidade <= 0 || i.valorUnitario <= 0)) {
+    if (itens.some(i => Number(i.quantidade) <= 0 || Number(i.valorUnitario) <= 0)) {
       toast({ title: "Erro", description: "Verifique os itens do frete (preço ou quantidade inválidos).", variant: "destructive" });
       return;
     }
 
     try {
-      const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
+      const raw = localStorage.getItem("gsfretes_user") || "{}";
+      const token = JSON.parse(raw).token || "";
 
-      // datas no formato que a API espera
       const dataBR = todayBR();
-      const vencimentoBR = formData.formaPg === "APRAZO" && formData.vencimento
-        ? toBR(formData.vencimento)
-        : "";
-
+      const vencimentoBR = formData.formaPg === "APRAZO" && formData.vencimento ? toBR(formData.vencimento) : "";
 
       const payload = {
         ...(isEdit ? { codigo: String(id) } : { codigo: "" }),
@@ -315,51 +272,43 @@ export default function NovoFretePage() {
         seqfin: "",
         vencimento: vencimentoBR,
         veiculo: String(formData.veiculoId),
-        origem: formData.origem.toUpperCase(),
-        destino: formData.destino.toUpperCase(),
+        origem: (formData.origem || "").toUpperCase(),
+        destino: (formData.destino || "").toUpperCase(),
         valor: calcularValorTotal().toFixed(2),
-        obs: formData.observacoes.toUpperCase(),
+        obs: (formData.observacoes || "").toUpperCase(),
         itens: itens.map((item, idx) => ({
-
           codigo: "",
           item: String(idx + 1),
-          produto: String(item.tabelaPrecoId).toUpperCase(),
+          produto: String(item.tabelaPrecoId || "0"),
           quantidade: String(item.quantidade),
-          descricao: item.produto.toUpperCase(),
-          unitario: item.valorUnitario.toFixed(2),
-          total: item.valorTotal.toFixed(2),
-          // unidade: item.unidade, // descomente se a API aceitar
+          descricao: (item.produto || "").toUpperCase(),
+          unitario: Number(item.valorUnitario).toFixed(2),
+          total: Number(item.valorTotal).toFixed(2),
         })),
       };
 
-      // mesmo endpoint para criar/editar
-      const res = await api.post("/api/fretes-registra", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.post("/api/fretes-registra", payload, { headers: { Authorization: `Bearer ${token}` } });
 
       const codigoFrete = res.data?.codigo || (isEdit ? String(id) : null);
       if (!codigoFrete) throw new Error("Código do frete não retornado pela API");
 
-      // cria receita apenas quando for NOVO (evita duplicar no update)
-      if (!isEdit) {
-        const numeroFrete = `FRT-${String(codigoFrete).padStart(3, "0")}`;
-        const agora = new Date();
+      // if (!isEdit) {
+      //   const numeroFrete = `FRT-${String(codigoFrete).padStart(3, "0")}`;
+      //   const agora = new Date();
 
-        const receitaPayload = {
-          codigo: "",
-          parcela: "1",
-          cliente: String(formData.clienteId),
-          documento: numeroFrete,
-          data: formatarDataComHoraBR(agora),                    // dd.MM.yyyy HH:mm:ss
-          vencimento: vencimentoBR || todayBR(),                 // dd.MM.yyyy
-          valor: calcularValorTotal().toFixed(2),
-          obs: `SERVIÇO PRESTADO FRETE PARA ${formData.destino?.toUpperCase() || ""}`,
-        };
+      //   const receitaPayload = {
+      //     codigo: "",
+      //     parcela: "1",
+      //     cliente: String(formData.clienteId),
+      //     documento: numeroFrete,
+      //     data: formatarDataComHoraBR(agora),
+      //     vencimento: vencimentoBR || todayBR(),
+      //     valor: calcularValorTotal().toFixed(2),
+      //     obs: `SERVIÇO PRESTADO FRETE PARA ${(formData.destino || "").toUpperCase()}`,
+      //   };
 
-        await api.post("/api/receitas-registra", receitaPayload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
+      //   await api.post("/api/receitas-registra", receitaPayload, { headers: { Authorization: `Bearer ${token}` } });
+      // }
 
       toast({ title: "Sucesso", description: isEdit ? "Frete atualizado" : "Frete criado" });
       router.push("/dashboard/fretes");
@@ -367,70 +316,50 @@ export default function NovoFretePage() {
       if (axios.isAxiosError(err)) {
         const resp = err.response;
         const cfg = err.config;
-
-        console.error("AXIOS ERROR ::", {
-          url: cfg?.url,
-          method: cfg?.method,
-          status: resp?.status,
-          statusText: resp?.statusText,
-          responseData: resp?.data,
-          requestData: cfg?.data,
-          headers: resp?.headers,
-        });
-
-        const backendMsg =
-          (typeof resp?.data === "string" && resp.data) ||
-          resp?.data?.mensagem ||
-          resp?.data?.message ||
-          err.message;
-
-        toast({
-          title: "Erro ao salvar",
-          description: backendMsg || "Falha ao comunicar com o servidor.",
-          variant: "destructive",
-        });
+        console.error("AXIOS ERROR ::", { url: cfg?.url, method: cfg?.method, status: resp?.status, responseData: resp?.data });
+        const backendMsg = (typeof resp?.data === "string" && resp.data) || resp?.data?.mensagem || resp?.data?.message || err.message;
+        toast({ title: "Erro ao salvar", description: backendMsg || "Falha ao comunicar com o servidor.", variant: "destructive" });
       } else {
         console.error("UNKNOWN ERROR ::", err);
-        toast({
-          title: "Erro inesperado",
-          description: err?.message || "Tente novamente.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro inesperado", description: err?.message || "Tente novamente.", variant: "destructive" });
       }
     }
   };
 
-  // Buscar clientes
+  // Buscar clientes (debounced)
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (buscaCliente.length < 2) return;
       try {
-        const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
+        const raw = localStorage.getItem("gsfretes_user") || "{}";
+        const token = JSON.parse(raw).token || "";
         const res = await api.post(
           "/api/cliente-lista",
           { condicao: `UPPER(NOME) LIKE '%${buscaCliente.toLocaleUpperCase()}%'`, ordem: "NOME" },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setResultadosCliente(res.data);
-      } catch {
+        setResultadosCliente(res.data || []);
+      } catch (error) {
+        console.error("Erro buscar clientes", error);
         setResultadosCliente([]);
       }
     }, 300);
+
     return () => clearTimeout(timer);
   }, [buscaCliente]);
 
   const selecionarCliente = (cliente: Cliente) => {
     setClienteSelecionado(cliente);
-    setBuscaCliente(cliente.nome);
+    setBuscaCliente(cliente.nome || "");
 
     const enderecoCompleto = `${cliente.endereco || ""}, ${cliente.numero || ""} - ${cliente.cidade || ""}`;
 
-    setFormData({
-      ...formData,
-      clienteId: cliente.id,
-      // origem: cliente.endereco,
-      destino: enderecoCompleto
-    });
+    setFormData((prev) => ({
+      ...prev,
+      clienteId: cliente.id || 0,
+      destino: enderecoCompleto,
+    }));
+
     setResultadosCliente([]);
   };
 
@@ -456,11 +385,7 @@ export default function NovoFretePage() {
               {resultadosCliente.length > 0 && (
                 <div className="absolute z-10 w-full bg-white border rounded shadow max-h-48 overflow-auto">
                   {resultadosCliente.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => selecionarCliente(c)}
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
-                    >
+                    <div key={c.id} onClick={() => selecionarCliente(c)} className="p-2 hover:bg-gray-100 cursor-pointer">
                       {c.nome} - {c.cnpj}
                     </div>
                   ))}
@@ -472,18 +397,18 @@ export default function NovoFretePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Origem *</Label>
-                <Input disabled={bloquearEdicao} value={formData.origem} onChange={(e) => setFormData({ ...formData, origem: e.target.value })} />
+                <Input disabled={bloquearEdicao} value={formData.origem} onChange={(e) => setFormData((p) => ({ ...p, origem: e.target.value }))} />
               </div>
               <div>
                 <Label>Destino *</Label>
-                <Input disabled={bloquearEdicao} value={formData.destino} onChange={(e) => setFormData({ ...formData, destino: e.target.value })} />
+                <Input disabled={bloquearEdicao} value={formData.destino} onChange={(e) => setFormData((p) => ({ ...p, destino: e.target.value }))} />
               </div>
             </div>
 
             {/* Forma de pagamento */}
             <div>
               <Label>Forma de Pagamento *</Label>
-              <Select disabled={bloquearEdicao} value={formData.formaPg} onValueChange={(v) => setFormData({ ...formData, formaPg: v })}>
+              <Select disabled={bloquearEdicao} value={formData.formaPg} onValueChange={(v) => setFormData((p) => ({ ...p, formaPg: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Escolha a forma de pagamento" />
                 </SelectTrigger>
@@ -497,7 +422,7 @@ export default function NovoFretePage() {
             {formData.formaPg === "APRAZO" && (
               <div>
                 <Label>Vencimento *</Label>
-                <Input disabled={bloquearEdicao} type="date" value={formData.vencimento} onChange={(e) => setFormData({ ...formData, vencimento: e.target.value })} />
+                <Input disabled={bloquearEdicao} type="date" value={formData.vencimento} onChange={(e) => setFormData((p) => ({ ...p, vencimento: e.target.value }))} />
               </div>
             )}
 
@@ -506,13 +431,12 @@ export default function NovoFretePage() {
               <Label>Veículo *</Label>
               <Select
                 disabled={bloquearEdicao}
-                value={String(formData.veiculoId)} // sempre string, mesmo se 0
+                value={String(formData.veiculoId)}
                 onValueChange={(value) => {
                   selecionarVeiculo(value);
-                  setFormData((prev) => ({ ...prev, veiculoId: Number(value) })); // garante estado
+                  setFormData((prev) => ({ ...prev, veiculoId: Number(value) }));
                 }}
               >
-
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o veículo" />
                 </SelectTrigger>
@@ -524,19 +448,16 @@ export default function NovoFretePage() {
                   ))}
                 </SelectContent>
               </Select>
-
-
             </div>
 
             {/* Observações */}
             <div>
               <Label>Observações</Label>
-              <Textarea disabled={bloquearEdicao} value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} />
+              <Textarea disabled={bloquearEdicao} value={formData.observacoes} onChange={(e) => setFormData((p) => ({ ...p, observacoes: e.target.value }))} />
             </div>
 
             {/* ITENS DO FRETE */}
             <div className="space-y-4">
-              {/* Cabeçalho da Tabela */}
               <div className="hidden md:grid grid-cols-12 gap-2 font-semibold text-sm px-2">
                 <div className="col-span-1">#</div>
                 <div className="col-span-2">Unidade</div>
@@ -547,28 +468,17 @@ export default function NovoFretePage() {
               </div>
 
               {itens.map((item, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 border rounded-md"
-                >
-                  {/* Index + botão remover */}
+                <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 border rounded-md">
                   <div className="flex items-center gap-2 col-span-1">
                     <span className="font-medium">#{index + 1}</span>
                     {itens.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removerItem(index)}
-                      >
+                      <Button type="button" variant="outline" size="icon" onClick={() => removerItem(index)}>
                         <Minus className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
 
-                  {/* Unidade (com busca de produto) */}
                   <div className="relative col-span-2">
-
                     <Input
                       disabled={bloquearEdicao}
                       value={item.unidade || ""}
@@ -578,14 +488,10 @@ export default function NovoFretePage() {
 
                         if (termo.length > 1) {
                           const lista = await handleGetProduto(termo);
-                          setResultadosProduto((prev) => ({
-                            ...prev,
-                            [index]: Array.isArray(lista) ? lista : lista ? [lista] : [],
-                          }));
+                          setResultadosProduto((prev) => ({ ...prev, [index]: Array.isArray(lista) ? lista : [] }));
                         } else {
                           setResultadosProduto((prev) => ({ ...prev, [index]: [] }));
                         }
-
                       }}
                       placeholder="Digite o nome do produto"
                     />
@@ -596,17 +502,19 @@ export default function NovoFretePage() {
                           <div
                             key={p.id}
                             onClick={() => {
-                              const preco = Number(p.preco.replace(",", ".")) || 0;
-                              const novosItens = [...itens];
-                              novosItens[index] = {
-                                ...novosItens[index],
-                                tabelaPrecoId: Number(p.id),
-                                unidade: p.unidade,
-                                valorUnitario: preco,
-                                valorTotal: preco * novosItens[index].quantidade,
-                              };
-                              setItens(novosItens);
-                              setResultadosProduto((prev) => ({ ...prev, [index]: [] })); // limpa só esse
+                              const preco = Number(String(p.preco).replace(",", ".")) || 0;
+                              setItens((prev) => {
+                                const novos = [...prev];
+                                novos[index] = {
+                                  ...novos[index],
+                                  tabelaPrecoId: Number(p.id) || 0,
+                                  unidade: p.unidade || novos[index].unidade,
+                                  valorUnitario: preco,
+                                  valorTotal: preco * (Number(novos[index].quantidade) || 1),
+                                };
+                                return novos;
+                              });
+                              setResultadosProduto((prev) => ({ ...prev, [index]: [] }));
                             }}
                             className="p-2 hover:bg-gray-100 cursor-pointer"
                           >
@@ -615,75 +523,45 @@ export default function NovoFretePage() {
                         ))}
                       </div>
                     )}
-
                   </div>
 
-                  {/* Quantidade */}
                   <div className="col-span-2">
                     <Input
                       disabled={bloquearEdicao}
                       type="number"
                       min={1}
                       value={item.quantidade}
-                      onChange={(e) =>
-                        atualizarItem(index, "quantidade", Number(e.target.value))
-                      }
+                      onChange={(e) => atualizarItem(index, "quantidade", Number(e.target.value))}
                     />
                   </div>
 
-                  {/* Valor Unitário */}
                   <div className="col-span-2">
                     <Input
                       disabled={bloquearEdicao}
                       type="number"
                       value={item.valorUnitario}
-                      onChange={(e) =>
-                        atualizarItem(index, "valorUnitario", Number(e.target.value))
-                      }
+                      onChange={(e) => atualizarItem(index, "valorUnitario", Number(e.target.value))}
                     />
                   </div>
 
-                  {/* Produto */}
                   <div className="col-span-3">
-                    <Input
-                      disabled={bloquearEdicao}
-                      placeholder="Descrição"
-                      value={item.produto}
-                      onChange={(e) => atualizarItem(index, "produto", e.target.value)}
-                    />
+                    <Input disabled={bloquearEdicao} placeholder="Descrição" value={item.produto} onChange={(e) => atualizarItem(index, "produto", e.target.value)} />
                   </div>
 
-                  {/* Total */}
                   <div className="col-span-2">
-                    <Input
-                      disabled
-                      value={`R$ ${item.valorTotal.toFixed(2)}`}
-                      className="bg-muted"
-                    />
+                    <Input disabled value={`R$ ${Number(item.valorTotal || 0).toFixed(2)}`} className="bg-muted" />
                   </div>
                 </div>
               ))}
 
-              <Button
-                disabled={bloquearEdicao}
-                type="button"
-                onClick={adicionarItem}
-                variant="outline"
-              >
+              <Button disabled={bloquearEdicao} type="button" onClick={adicionarItem} variant="outline">
                 <Plus className="mr-2 h-4 w-4" /> Adicionar Item
               </Button>
             </div>
 
+            <div className="text-right text-lg font-bold">Total do Frete: R$ {calcularValorTotal().toFixed(2)}</div>
 
-
-            {/* Total do Frete */}
-            <div className="text-right text-lg font-bold">
-              Total do Frete: R$ {calcularValorTotal().toFixed(2)}
-            </div>
-
-            <Button disabled={bloquearEdicao} type="submit" className="w-full">
-              Salvar Frete
-            </Button>
+            <Button disabled={bloquearEdicao} type="submit" className="w-full">Salvar Frete</Button>
           </form>
         </CardContent>
       </Card>

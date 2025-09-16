@@ -94,6 +94,7 @@ async function apiReceitasLista(token: string, situacao: 'GERAL' | 'PENDENTES') 
     const cfg = { headers: { Authorization: `Bearer ${token}` } }
     const body = { condicao: '', situacao, ordem: '' }
     const r = await api.post('/api/receitas-lista', body, cfg)
+    console.log("a", r)
     return Array.isArray(r.data) ? (r.data as Receita[]) : []
 }
 
@@ -188,6 +189,7 @@ export default function Financeiro() {
 
 
             const dados: Receita[] = res.data;
+            console.log("financeiro", dados)
 
             const mapped = dados.map((f) => ({
                 codigo: f.codigo,
@@ -242,6 +244,9 @@ export default function Financeiro() {
                 apiReceitasLista(token, 'PENDENTES'),
                 apiRecebimentosLista(token),
             ])
+            console.table(arrGeral, ["codigo", "documento", "valor"])
+            console.table(arrPend, ["codigo", "documento", "valor"])
+            console.table(arrRec, ["codigo", "item", "recebido"])
 
             setGeral(arrGeral)
             setPendentes(arrPend)

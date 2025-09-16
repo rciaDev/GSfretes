@@ -52,6 +52,7 @@ interface FreteAPI {
     descricao: string;
     quantidade: string;
     unitario: string;
+    unidade: string;
     total: string;
   }[];
 }
@@ -70,6 +71,7 @@ export type Frete = {
   itens: {
     descricao: string;
     quantidade: string;
+    unidade: string;
     unitario: string;
     total: string;
   }[];
@@ -230,8 +232,147 @@ export default function DataTableFretes() {
     },
   });
 
-  // Função para gerar PDF
-  const gerarRomaneio = () => {
+
+
+  // const gerarRomaneio = () => {
+  //   const selecionados = table.getSelectedRowModel().rows.map((row) => row.original);
+
+  //   if (selecionados.length === 0) {
+  //     toast({
+  //       title: "Atenção!",
+  //       description: "Selecione ao menos um frete.",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   const doc = new jsPDF();
+  //   const PAGE_HEIGHT = doc.internal.pageSize.height;
+  //   const MARGIN = 14;
+
+  //   let valorTotalGeral = 0;
+  //   let posY = 25;
+  //   let currentPage = 1;
+
+  //   const origemPadrao = selecionados[0]?.origem;
+  //   const destinoPadrao = selecionados[0]?.destino;
+  //   const dataPadrao = new Date(selecionados[0]?.data).toLocaleDateString("pt-BR");
+
+  //   // Função para rodapé
+  //   const drawFooter = (pageNumber: number) => {
+  //     const footerY = PAGE_HEIGHT - 20;
+  //     doc.setFontSize(10);
+  //     doc.text("Observações Gerais:", MARGIN, footerY - 10);
+  //     doc.line(MARGIN, footerY - 5, 190, footerY - 5);
+
+  //     doc.text("Recebido por:", MARGIN, footerY + 2);
+  //     doc.line(MARGIN, footerY + 7, 90, footerY + 7);
+
+  //     doc.text("Data: ____/____/____", 120, footerY + 2);
+  //     doc.text(`Página ${pageNumber}`, 180, footerY + 2, { align: "right" });
+  //   };
+
+  //   // Cabeçalho inicial
+  //   doc.setFontSize(16);
+  //   doc.text("Romaneio de Fretes", MARGIN, 15);
+
+  //   selecionados.forEach((frete, index) => {
+  //     // Quebra de página
+  //     if (posY > PAGE_HEIGHT - 60) {
+  //       drawFooter(currentPage);
+  //       doc.addPage();
+  //       currentPage++;
+  //       posY = 25;
+  //     }
+
+  //     const dataFrete = new Date(frete.data).toLocaleDateString("pt-BR");
+
+  //     // Cabeçalho do frete
+  //     doc.setFontSize(12);
+  //     doc.text(`Frete: ${frete.numero}     Cliente: ${frete.cliente}`, MARGIN, posY);
+  //     posY += 6;
+
+  //     // if (frete.origem !== origemPadrao) {
+  //     //   doc.text(`Origem: ${frete.origem}`, MARGIN, posY);
+  //     //   posY += 6;
+  //     // }
+
+  //     // if (frete.destino !== destinoPadrao) {
+  //     //   doc.text(`Destino: ${frete.destino}`, MARGIN, posY);
+  //     //   posY += 6;
+  //     // }
+
+
+  //     if (frete.origem) {
+  //       doc.text(`Origem: ${frete.origem.toUpperCase()}`, MARGIN, posY);
+  //       posY += 6;
+  //     }
+
+
+  //     if (frete.destino) {
+  //       doc.text(`Destino: ${frete.destino.toUpperCase()}`, MARGIN, posY);
+  //       posY += 6;
+  //     }
+
+
+
+  //     // if (dataFrete !== dataPadrao) {
+  //     //   doc.text(`Data: ${dataFrete}`, MARGIN, posY);
+  //     //   posY += 6;
+  //     // }
+
+  //     if (dataFrete) {
+  //       doc.text(`Data: ${dataFrete}`, MARGIN, posY);
+  //       posY += 6;
+  //     }
+
+  //     // Tabela de itens
+  //     const itens = frete.itens.map((item) => [
+  //       item.unidade,
+  //       item.descricao,
+  //       item.quantidade,
+  //       `R$ ${parseFloat(item.unitario).toFixed(2)}`,
+  //       `R$ ${parseFloat(item.total).toFixed(2)}`,
+  //     ]);
+
+  //     autoTable(doc, {
+  //       startY: posY,
+  //       head: [["Unidade", "Descrição", "Qtd", "Unitário", "Total"]],
+  //       body: itens,
+  //       styles: { fontSize: 10 },
+  //       margin: { left: MARGIN, right: MARGIN },
+  //       didDrawPage: (data) => {
+  //         posY = (data.cursor?.y ?? posY) + 10;
+  //       },
+  //     });
+
+  //     // Observação
+  //     if (frete.obs && frete.obs.trim() !== "") {
+  //       doc.setFontSize(10);
+  //       doc.text(`Observação: ${frete.obs}`, MARGIN, posY);
+  //       posY += 6;
+  //     }
+
+  //     // Subtotal
+  //     valorTotalGeral += frete.valorTotal;
+  //     doc.setFontSize(12);
+  //     doc.text(`Subtotal Frete: R$ ${frete.valorTotal.toFixed(2)}`, MARGIN, posY);
+  //     posY += 15;
+  //   });
+
+  //   // Rodapé final da última página
+  //   drawFooter(currentPage);
+
+  //   // Total geral
+  //   doc.setFontSize(14);
+  //   doc.text(`Total de Fretes: ${selecionados.length}     Valor Total: R$ ${valorTotalGeral.toFixed(2)}`, MARGIN, posY);
+
+  //   // doc.save("romaneio.pdf");
+  //   doc.autoPrint();
+  //   doc.output("dataurlnewwindow");
+  // };
+
+  const gerarRomaneio = async () => {
     const selecionados = table.getSelectedRowModel().rows.map((row) => row.original);
 
     if (selecionados.length === 0) {
@@ -248,106 +389,113 @@ export default function DataTableFretes() {
     const MARGIN = 14;
 
     let valorTotalGeral = 0;
-    let posY = 25;
+    let posY = 40;
     let currentPage = 1;
 
-    const origemPadrao = selecionados[0]?.origem;
-    const destinoPadrao = selecionados[0]?.destino;
-    const dataPadrao = new Date(selecionados[0]?.data).toLocaleDateString("pt-BR");
-
     // Função para rodapé
-    const drawFooter = (pageNumber: number) => {
+    const drawFooter = (pageNumber: any) => {
       const footerY = PAGE_HEIGHT - 20;
       doc.setFontSize(10);
       doc.text("Observações Gerais:", MARGIN, footerY - 10);
       doc.line(MARGIN, footerY - 5, 190, footerY - 5);
-
       doc.text("Recebido por:", MARGIN, footerY + 2);
       doc.line(MARGIN, footerY + 7, 90, footerY + 7);
-
       doc.text("Data: ____/____/____", 120, footerY + 2);
       doc.text(`Página ${pageNumber}`, 180, footerY + 2, { align: "right" });
     };
 
-    // Cabeçalho inicial
-    doc.setFontSize(16);
-    doc.text("Romaneio de Fretes", MARGIN, 15);
+    // Função para adicionar cabeçalho
+    const drawHeader = async (doc:any) => {
+      const logoPath = '/logo.jpg';
+      try {
+        const img = new Image();
+        img.src = logoPath;
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
 
-    selecionados.forEach((frete, index) => {
-      // Quebra de página
-      if (posY > PAGE_HEIGHT - 60) {
-        drawFooter(currentPage);
-        doc.addPage();
-        currentPage++;
-        posY = 25;
-      }
+        doc.addImage(logoPath, 'PNG', MARGIN, 10, 30, 20);
+      } catch { }
+      doc.setFontSize(16);
+      doc.text("Lancha Nova Martins", MARGIN + 35, 15);
+      doc.setFontSize(12);
+      doc.text("TRANSPORTE DE CARGAS E PASSAGEIROS", MARGIN + 35, 20);
+      doc.text("DOUGLAS S. MARTINS", MARGIN + 35, 25);
+      doc.text(`(67) 9.9805-1767 / 9.9639-0959`, MARGIN + 35, 30);
+      doc.text("PORTO DONA EMÍLIA", MARGIN + 35, 35);
+      // doc.text("Nova Martins", MARGIN + 190, 35, { align: "right" });
+      doc.line(MARGIN, 38, 190, 38);
+      doc.setFontSize(16);
+      // doc.text("Romaneio de Fretes", MARGIN, 43);
+      posY = 50;
+    };
 
-      const dataFrete = new Date(frete.data).toLocaleDateString("pt-BR");
+    await drawHeader(doc);
 
+    for (const frete of selecionados) {
       // Cabeçalho do frete
       doc.setFontSize(12);
       doc.text(`Frete: ${frete.numero}     Cliente: ${frete.cliente}`, MARGIN, posY);
       posY += 6;
 
-      if (frete.origem !== origemPadrao) {
-        doc.text(`Origem: ${frete.origem}`, MARGIN, posY);
+      if (frete.origem) {
+        doc.text(`Origem: ${frete.origem.toUpperCase()}`, MARGIN, posY);
         posY += 6;
       }
-
-      if (frete.destino !== destinoPadrao) {
-        doc.text(`Destino: ${frete.destino}`, MARGIN, posY);
+      if (frete.destino) {
+        doc.text(`Destino: ${frete.destino.toUpperCase()}`, MARGIN, posY);
         posY += 6;
       }
-
-      if (dataFrete !== dataPadrao) {
-        doc.text(`Data: ${dataFrete}`, MARGIN, posY);
+      if (frete.data) {
+        doc.text(`Data: ${frete.data}`, MARGIN, posY);
         posY += 6;
       }
 
       // Tabela de itens
-      const itens = frete.itens.map((item) => [
+      const itens = frete.itens.map(item => [
+        item.unidade,
         item.descricao,
         item.quantidade,
         `R$ ${parseFloat(item.unitario).toFixed(2)}`,
-        `R$ ${parseFloat(item.total).toFixed(2)}`,
+        `R$ ${parseFloat(item.total).toFixed(2)}`
       ]);
 
       autoTable(doc, {
         startY: posY,
-        head: [["Descrição", "Qtd", "Unitário", "Total"]],
+        head: [["Unidade", "Descrição", "Qtd", "Unitário", "Total"]],
         body: itens,
         styles: { fontSize: 10 },
         margin: { left: MARGIN, right: MARGIN },
         didDrawPage: (data) => {
           posY = (data.cursor?.y ?? posY) + 10;
+          if (data.pageNumber > currentPage) {
+            currentPage = data.pageNumber;
+            drawHeader(doc);
+          }
         },
       });
 
-      // Observação
-      if (frete.obs && frete.obs.trim() !== "") {
+      if (frete.obs) {
         doc.setFontSize(10);
         doc.text(`Observação: ${frete.obs}`, MARGIN, posY);
         posY += 6;
       }
 
-      // Subtotal
       valorTotalGeral += frete.valorTotal;
       doc.setFontSize(12);
       doc.text(`Subtotal Frete: R$ ${frete.valorTotal.toFixed(2)}`, MARGIN, posY);
       posY += 15;
-    });
+    }
 
-    // Rodapé final da última página
     drawFooter(currentPage);
-
-    // Total geral
     doc.setFontSize(14);
     doc.text(`Total de Fretes: ${selecionados.length}     Valor Total: R$ ${valorTotalGeral.toFixed(2)}`, MARGIN, posY);
 
-    // doc.save("romaneio.pdf");
     doc.autoPrint();
     doc.output("dataurlnewwindow");
   };
+
 
 
 
