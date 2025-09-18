@@ -48,6 +48,7 @@ interface FreteAPI {
   origem: string;
   destino: string;
   valor: string;
+  obs?: string;
   itens: {
     descricao: string;
     quantidade: string;
@@ -192,6 +193,7 @@ export default function DataTableFretes() {
         data: f.data,
         cliente: f.nome,
         origem: f.origem,
+        obs: f.obs,
         destino: f.destino,
         valorTotal: parseFloat(f.valor),
         itens: f.itens || [],
@@ -405,7 +407,7 @@ export default function DataTableFretes() {
     };
 
     // Função para adicionar cabeçalho
-    const drawHeader = async (doc:any) => {
+    const drawHeader = async (doc: any) => {
       const logoPath = '/logo.jpg';
       try {
         const img = new Image();
@@ -434,11 +436,14 @@ export default function DataTableFretes() {
     await drawHeader(doc);
 
     for (const frete of selecionados) {
-      // Cabeçalho do frete
+      // 🔹 Cabeçalho do cliente
       doc.setFontSize(12);
-      doc.text(`Frete: ${frete.numero}     Cliente: ${frete.cliente}`, MARGIN, posY);
+      doc.text(`Cliente: ${frete.cliente}`, MARGIN, posY);
+      posY += 6;
+      doc.text(`Número do Frete: ${frete.numero}`, MARGIN, posY);
       posY += 6;
 
+      // 🔹 Dados principais do frete
       if (frete.origem) {
         doc.text(`Origem: ${frete.origem.toUpperCase()}`, MARGIN, posY);
         posY += 6;
@@ -452,7 +457,7 @@ export default function DataTableFretes() {
         posY += 6;
       }
 
-      // Tabela de itens
+      // 🔹 Tabela de itens
       const itens = frete.itens.map(item => [
         item.unidade,
         item.descricao,
@@ -476,17 +481,22 @@ export default function DataTableFretes() {
         },
       });
 
+      // 🔹 Observação destacada
       if (frete.obs) {
         doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
         doc.text(`Observação: ${frete.obs}`, MARGIN, posY);
-        posY += 6;
+        doc.setFont("helvetica", "normal");
+        posY += 8;
       }
 
+      // 🔹 Subtotal
       valorTotalGeral += frete.valorTotal;
       doc.setFontSize(12);
       doc.text(`Subtotal Frete: R$ ${frete.valorTotal.toFixed(2)}`, MARGIN, posY);
       posY += 15;
     }
+
 
     drawFooter(currentPage);
     doc.setFontSize(14);

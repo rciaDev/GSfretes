@@ -113,6 +113,15 @@ export default function NovoFretePage() {
         const frete = res.data?.[0];
         if (!frete) return;
 
+        const formatarData = (dataStr: string) => {
+          if (!dataStr) return "";
+          const partes = dataStr.split(".");
+          if (partes.length !== 3) return "";
+          const [dia, mes, ano] = partes;
+          return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`; // formato válido pro input date
+        };
+
+
         setFormData((prev) => ({
           ...prev,
           clienteId: Number(frete.cliente) || 0,
@@ -123,7 +132,8 @@ export default function NovoFretePage() {
           motoristaNome: "",
           observacoes: frete.obs || "",
           formaPg: frete.formapg || "AVISTA",
-          vencimento: frete.vencimento || "",
+          // vencimento: frete.vencimento || "",
+          vencimento: formatarData(frete.vencimento) || "",
         }));
 
         setBuscaCliente(frete.nome || "");
