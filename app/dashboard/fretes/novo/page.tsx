@@ -93,25 +93,39 @@ export default function NovoFretePage() {
         const raw = localStorage.getItem("gsfretes_user") || "{}";
         const token = JSON.parse(raw).token || "";
 
-        const resRecebimento = await api.post(
-          "/api/recebimentos-lista",
-          { condicao: `CODIGO=${id}`, ordem: "CODIGO" },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
 
-        if (Array.isArray(resRecebimento.data) && resRecebimento.data.length > 0) {
-          toast({ title: "Atenção", description: "Frete já baixado, não é possível editar.", variant: "destructive" });
-          setBloquearEdicao(true);
-        }
-
-        const res = await api.post(
+        const resFrete = await api.post(
           "/api/fretes-lista",
           { condicao: `CODIGO=${id}`, ordem: "" },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const frete = res.data?.[0];
+        console.log("Resposta do frete:", resFrete.data);
+
+        const frete = resFrete.data?.[0];
         if (!frete) return;
+
+        console.log("frete carregado:", frete);
+
+        // 2️⃣ Verificar se há baixa diretamente no frete
+        const freteBaixado =
+          Array.isArray(frete.receita) &&
+          frete.receita.some(
+            (r: any) =>
+              r.item_baixa ||
+              r.data_baixa ||
+              (Number(r.valor_baixa) > 0)
+          );
+
+        if (freteBaixado) {
+          toast({
+            title: "Atenção",
+            description: "Frete já baixado, não é possível editar.",
+            variant: "destructive",
+          });
+          setBloquearEdicao(true);
+        }
+
 
         const formatarData = (dataStr: string) => {
           if (!dataStr) return "";
@@ -296,6 +310,8 @@ export default function NovoFretePage() {
           total: Number(item.valorTotal).toFixed(2),
         })),
       };
+
+      console.log("Payload enviado:", payload);
 
       const res = await api.post("/api/fretes-registra", payload, { headers: { Authorization: `Bearer ${token}` } });
 

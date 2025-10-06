@@ -181,7 +181,7 @@ export default function DataTableFretes() {
 
       const res = await api.post(
         "/api/fretes-lista",
-        { condicao, ordem: "CODIGO" },
+        { condicao, ordem: "CODIGO DESC" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
