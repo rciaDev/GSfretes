@@ -62,6 +62,8 @@ interface Frete {
   valor: number;
   status: string;
   data: string;
+  
+  codigo?: string;
 }
 
 export default function FretesPage() {
@@ -82,7 +84,7 @@ export default function FretesPage() {
       let condicao = "";
       if (searchTerm.trim()) {
         const termo = searchTerm.toUpperCase();
-         condicao = `(C.NOME LIKE '%${termo}%' OR F.ORIGEM LIKE '%${termo}%' OR F.DESTINO LIKE '%${termo}%' OR F.SEQFIN LIKE '${termo}')`;
+        condicao = `(C.NOME LIKE '%${termo}%' OR F.ORIGEM LIKE '%${termo}%' OR F.DESTINO LIKE '%${termo}%' OR F.SEQFIN LIKE '${termo}')`;
         console.log("condição", condicao)
       }
 
@@ -120,27 +122,103 @@ export default function FretesPage() {
     }
   };
 
+  // async function abrirConfirmacao(frete: Frete) {
+  //   try {
+  //     const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token
+  //     const qtd = await contarRecebimentos(token, frete.id)
+  //     if (qtd > 0) {
+  //       toast({
+  //         title: "Exclusão bloqueada",
+  //         description: `Este frete possui ${qtd} recebimento(s) registrado(s). Exclua/estorne os recebimentos antes.`,
+  //         variant: "destructive",
+  //       })
+  //       return
+  //     }
+  //     setFreteAlvo(frete)
+  //     setOpen(true)
+  //   } catch (e: any) {
+  //     // Em caso de erro na checagem, prefira bloquear para não excluir sem verificar
+  //     toast({
+  //       title: "Não foi possível verificar recebimentos",
+  //       description: "Tente novamente em instantes.",
+  //       variant: "destructive",
+  //     })
+  //   }
+  // }
+
   async function abrirConfirmacao(frete: Frete) {
     try {
-      const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token
-      const qtd = await contarRecebimentos(token, frete.id)
-      if (qtd > 0) {
+      const raw = localStorage.getItem("gsfretes_user") || "{}";
+      const token = JSON.parse(raw).token || "";
+
+      // Buscar o frete completo, incluindo receitas/itens baixados
+      const resFrete = await api.post(
+        "/api/fretes-lista",
+        { condicao: `CODIGO=${frete.id}`, ordem: "" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log("Dados do frete para verificação:", resFrete.data);
+
+      const freteCompleto = resFrete.data?.[0];
+      if (!freteCompleto) throw new Error("Frete não encontrado");
+
+      // Verificar se há algum recebimento/baixa
+      const freteBaixado =
+        Array.isArray(freteCompleto.receita) &&
+        freteCompleto.receita.some(
+          (r: any) =>
+            r.item_baixa ||
+            r.data_baixa ||
+            (Number(r.valor_baixa) > 0)
+        );
+
+      if (freteBaixado) {
         toast({
           title: "Exclusão bloqueada",
-          description: `Este frete possui ${qtd} recebimento(s) registrado(s). Exclua/estorne os recebimentos antes.`,
+          description: "Este frete já possui recebimento(s). Não é possível excluir.",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
-      setFreteAlvo(frete)
-      setOpen(true)
+
+      // Se não há baixa, abre o modal de exclusão
+      setFreteAlvo(freteCompleto);
+      setOpen(true);
+
     } catch (e: any) {
-      // Em caso de erro na checagem, prefira bloquear para não excluir sem verificar
+      console.error("Erro ao verificar exclusão:", e);
       toast({
         title: "Não foi possível verificar recebimentos",
         description: "Tente novamente em instantes.",
         variant: "destructive",
+      });
+    }
+  }
+
+
+  async function confirmarExcluir() {
+    if (!freteAlvo) return;
+
+    try {
+      setExcluindo(true);
+      const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
+      console.log("Payload para exclusão:", { codigo: freteAlvo?.codigo });
+
+      await api.post("/api/fretes-exclui",
+        { codigo: freteAlvo.codigo },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      toast({
+        title: "Frete excluído com sucesso!",
       })
+      setOpen(false)
+      setFreteAlvo(null)
+
+      await carregarFretes();
+    } finally {
+      setExcluindo(false);
     }
   }
 
@@ -156,29 +234,7 @@ export default function FretesPage() {
     return arr.length
   }
 
-  async function confirmarExcluir() {
-    if (!freteAlvo) return;
 
-    try {
-      setExcluindo(true);
-      const token = JSON.parse(localStorage.getItem("gsfretes_user") || "{}").token;
-
-      await api.post("/api/fretes-exclui",
-        { codigo: freteAlvo.id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      toast({
-        title: "Frete excluído com sucesso!",
-      })
-      setOpen(false)
-      setFreteAlvo(null)
-
-      await carregarFretes();
-    } finally {
-      setExcluindo(false);
-    }
-  }
 
   // Chama a API ao montar a página e quando searchTerm mudar
   useEffect(() => {
