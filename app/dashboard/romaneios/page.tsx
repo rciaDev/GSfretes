@@ -374,6 +374,13 @@ export default function DataTableFretes() {
   //   doc.output("dataurlnewwindow");
   // };
 
+  const formatarMoeda = (valor: number) =>
+    valor.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+
   const gerarRomaneio = async () => {
     const selecionados = table.getSelectedRowModel().rows.map((row) => row.original);
 
@@ -493,14 +500,31 @@ export default function DataTableFretes() {
       // 🔹 Subtotal
       valorTotalGeral += frete.valorTotal;
       doc.setFontSize(12);
-      doc.text(`Subtotal Frete: R$ ${frete.valorTotal.toFixed(2)}`, MARGIN, posY);
+      // doc.text(`Subtotal Frete: R$ ${frete.valorTotal.toFixed(2)}`, MARGIN, posY);
+      doc.text(
+        `Subtotal Frete: R$ ${formatarMoeda(frete.valorTotal)}`,
+        MARGIN,
+        posY
+      );
+
       posY += 15;
     }
 
 
     drawFooter(currentPage);
     doc.setFontSize(14);
-    doc.text(`Total de Fretes: ${selecionados.length}     Valor Total: R$ ${valorTotalGeral.toFixed(2)}`, MARGIN, posY);
+    // doc.text(`Total de Fretes: ${selecionados.length}     Valor Total: R$ ${valorTotalGeral.toFixed(2)}`, MARGIN, posY);
+
+    const valorFormatado = valorTotalGeral.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+    doc.text(
+      `Total de Fretes: ${selecionados.length}     Valor Total: R$ ${valorFormatado}`,
+      MARGIN,
+      posY
+    );
 
     doc.autoPrint();
     doc.output("dataurlnewwindow");
